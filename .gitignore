@@ -1,0 +1,4 @@
+
+app/resource/
+__pycache__
+*.pyc
