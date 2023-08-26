@@ -1,5 +1,5 @@
 ######################################信息展示######################################
-from qfluentwidgets import InfoBar, InfoBarPosition
+from qfluentwidgets import InfoBar, InfoBarPosition, IndeterminateProgressBar
 from PyQt5.QtCore import Qt 
 
 class CreateInfoBar():
@@ -59,3 +59,17 @@ class CreateInfoBar():
             duration=1500,
             parent=parent
         )
+
+class CreateProcessBar():
+    def __init__(self , parent=None) -> None:
+        self.bar = IndeterminateProgressBar(parent)
+        self.__initBar()
+    
+    def __initBar(self):
+        return self.bar
+
+    def start(self):
+        self.bar.start()
+
+    def stop(self):
+        self.bar.stop()
