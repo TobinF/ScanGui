@@ -55,9 +55,20 @@ class CommandFrame(Frame):
         vBoxLayout = QVBoxLayout()
         buttonBoxLayout = QHBoxLayout()
         self.commandComboBox = EditableComboBox()
-        self.commandComboBox.addItems(['---选择或输入指令---', \
-                                       '*IDN?', '*CLS', '*RST','*TST?','*OPC','*OPC?',\
-                                        '*WAI','*ESE','*ESE?','*ESR?','*SRE','*SRE?','*STB?'])
+        self.commandComboBox.addItems(['---选择或输入指令---', 
+                                        '*IDN?--查询仪器ID', 
+                                        '*CLS--清除仪器状态', 
+                                        '*RST--恢复仪器默认设置',
+                                        '*TST?--自检',
+                                        '*OPC--等待操作完成',
+                                        '*OPC?--查询操作完成状态',
+                                        '*WAI--等待操作完成',
+                                        '*ESE--使能事件状态寄存器',
+                                        '*ESE?--查询事件状态寄存器',
+                                        '*ESR?--查询事件状态寄存器',
+                                        '*SRE--使能服务请求',
+                                        '*SRE?--查询服务请求',
+                                        '*STB?--查询状态字节',])
 
         self.writeButton = PushButton('写入')
         self.writeButton.setFixedSize(120, 32)
@@ -99,10 +110,10 @@ class CommandFrame(Frame):
         return inner
         
     @isConnect
-    @func_set_timeout(20)
+    @func_set_timeout(5)
     def writeButtonOnClicked(self):
         try:
-            ret = self.inst.inst.write(self.commandComboBox.currentText())
+            ret = self.inst.inst.write(self.commandComboBox.currentText().split('--')[0])
             self.commandTextEdit.append(str(self.counts)+': write')
             self.commandTextEdit.append('send:  '+str(self.commandComboBox.currentText()))
             self.commandTextEdit.append('return \n:'+str(ret))
@@ -125,7 +136,7 @@ class CommandFrame(Frame):
             return
     
     @isConnect
-    @func_set_timeout(20)
+    @func_set_timeout(5)
     def readButtonOnClicked(self):
         try:
             ret = self.inst.inst.read()
