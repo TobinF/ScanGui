@@ -1,9 +1,10 @@
-from PyQt5.QtCore import Qt
-from PyQt5.QtWidgets import ( QLCDNumber, QFrame, QHBoxLayout, QTableWidgetItem, QAbstractItemView)
-from qfluentwidgets import PushButton, TableWidget, BodyLabel
 from loguru import logger
+
+from PyQt5.QtCore import Qt
+from PyQt5.QtWidgets import QLCDNumber, QFrame, QHBoxLayout, QTableWidgetItem, QAbstractItemView, QApplication
+from qfluentwidgets import PushButton, TableWidget, BodyLabel
+
 from .gallery_interface import GalleryInterface
-# from .main_window import MainWindow
 from ..common.style_sheet import StyleSheet
 from ..components.info_bar import CreateInfoBar
 from ..components.create_thread import CreateThread
@@ -18,6 +19,7 @@ class ScanInterface(GalleryInterface):
     def __init__(self,inst, parent=None):
         self.inst:Agilent34970A = inst
         self.mainWindow = parent
+        self.beginScanTime = 0
         super().__init__(
             title='扫描页面',
             subtitle="查看扫描结果和保存扫描数据",
@@ -89,89 +91,45 @@ class ScanInterface(GalleryInterface):
         # 添加布局到主布局
         self.vBoxLayout.addLayout(buttonBoxLayout)
 
+    def __initTableLayout(self):
+        slotList = [1,2,3] 
+        ...
+
+    @property
+    def createTableThread(self)->CreateThread:
+        tableThread = CreateThread()   
+        tableThread.display = True
+        tableThread.flushpDisplay.connect(self.syncTableData)
+        tableThread.timeInterval = 1
+        return tableThread
+    @property
+    def createSyncTimeThread(self)->CreateThread:
+        syncTimeThread = CreateThread()
+        syncTimeThread.display = True
+        syncTimeThread.flushpDisplay.connect(self.syncTime)
+        syncTimeThread.timeInterval = 1
+        return syncTimeThread
+
 
     def startScanButtonOnClicked(self):
         '''
         创建新线程，启动扫描
         '''
-        # 扫描线程
-        self.scanThread = CreateThread()
-        self.scanThread.scanSignal.connect(self.mainWindow.scanResultData)
-        self.scanThread.target = self.inst.parseResult         # TODO:修改为parseResult函数
-        self.scanThread.display = self.syncTableData
-        self.scanThread.timeInterval = self.inst.scanInterval
-        # self.scanThread.timeInterval = 1
-        # 时钟线程
-        self.beginScanTime = time.time()
-        self.syncTimeThread = CreateThread()
-        self.syncTimeThread.target = self.syncTime
-        self.syncTimeThread.timeInterval = 1
-
-        # 启动线程
-        # CreateInfoBar.createInfoBar(self.mainWindow, '提示', '开始扫描')
-        # beginScanTime = time.localtime()
-        # self.syncTime(beginScanTime)
-        # self.scanThread.start()
-        # self.syncTimeThread.start()
-        self.mainWindow.startScan(
-            scanThread = self.scanThread, 
-            syncTimeThread = self.syncTimeThread
-            )
+        self.mainWindow.startScan()
         ...
     def stopScanButtonOnClicked(self):
-        self.inst.breakScan = True
-        self.beginScanTime = 0
-        # 结束线程
-        try:
-            self.scanThread.stop()
-            self.syncTimeThread.stop()
-            CreateInfoBar.createInfoBar(self.mainWindow, '提示', '结束扫描')
-        # 关闭线程
-        except:
-            if self.scanThread.isRunning:
-                self.scanThread.terminate()
-            if self.syncTimeThread.isRunning:
-                self.syncTimeThread.terminate()
-                CreateInfoBar.createInfoBar(self.mainWindow, '提示', '结束扫描')
+        '''
+        关闭线程
+        '''
+        self.mainWindow.stopScan()
         ...
+    def testStartButtonOnClicked(self):
+        self.exportData()
 
-    def syncTableData(self):
-        resultData = self.mainWindow.scanResult
-        print(self.resultData)
-        # 更新LCD显示时间
-        #  resultData = {105:
-        #               {'data': [29.911, 29.949, 29.939, 29.866, 29.816, 29.753, 29.734],
-        #                'type': 'FRTD',
-        #                'unit': 'C',
-        #                'time': [1692936586.0, 3.0, 5.0, 8.0, 11.0, 13.0, 16.0],
-        #                'maxValue': 29.949,
-        #                'minValue': 29.734},
-        #               106:
-        #               {'data': [-9.9e+37, -9.9e+37, -9.9e+37, -9.9e+37, -9.9e+37, -9.9e+37, -9.9e+37],
-        #                'type':
-        #                'TCouple',
-        #                'unit': 'K',
-        #                'time': [1692936586.0, 3.0, 5.0, 8.0, 11.0, 13.0, 16.0],
-        #                'maxValue': -9.9e+37,
-        #                'minValue': -9.9e+37},
-        #               107:
-        #               {'data': [9.9e+37, 9.9e+37, 9.9e+37, 9.9e+37, 9.9e+37, 9.9e+37, 9.9e+37],
-        #                'type':
-        #                'THERmistor',
-        #                'unit': 'F',
-        #                'time': [1692936586.0, 3.0, 5.0, 8.0, 11.0, 13.0, 16.0],
-        #                'maxValue': 9.9e+37,
-        #                'minValue': 9.9e+37},
-        #             121:
-        #               {'data': [9.9e+37, 9.9e+37, 9.9e+37, 9.9e+37, 9.9e+37, 9.9e+37, 9.9e+37],
-        #                'type':
-        #                'DC',
-        #                'unit': 'mA',
-        #                'time': [1692936586.0, 3.0, 5.0, 8.0, 11.0, 13.0, 16.0],
-        #                'maxValue': 9.9e+37,
-        #                'minValue': 9.9e+37}
-        #               }
-        
+    def syncTableData(self, isFlush:bool):
+        if not isFlush:
+            return
+        resultData = self.mainWindow.scanResultData
         for k, v in resultData.items():
             channel = k
             data = v['data'][-1]
@@ -182,7 +140,7 @@ class ScanInterface(GalleryInterface):
             slot = int(str(k)[0])
             getattr(self, f'slot{slot}').widget.syncData(channel, data, physicalType, unit, maxValue, minValue)        # ...
 
-    def syncTime(self,):
+    def syncTime(self):
         # 更新LCD显示时间
         if self.beginScanTime:
             # 计算时间差
@@ -190,16 +148,15 @@ class ScanInterface(GalleryInterface):
             # 输出时间差，格式为：时:分:秒
             scanTime = time.strftime("%H:%M:%S", time.gmtime(sec))
             self.timeLcd.display(scanTime)
-        return {}
-
-
-    def testStartButtonOnClicked(self):
-        self.syncTableData(0)
 
     def exportData(self):
-        resultData = self.mainWindow.scanResult
-        with open('data.txt', 'w') as f:
-            f.write(resultData)
+        resultData = self.mainWindow.scanResultData
+        fileNmae = f'扫描数据-{time.strftime("%Y-%m-%d-%H-%M-%S", time.localtime())}.json'
+        with open(fileNmae, 'w', encoding='utf-8') as f:
+            import json
+            jsonData = json.dumps(resultData)
+            f.write(jsonData)
+        CreateInfoBar.createInfoBar(self.mainWindow, '提示', f'数据已导出到{fileNmae}')
         ...
 
 class Frame(QFrame):

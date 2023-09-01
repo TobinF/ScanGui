@@ -1,48 +1,49 @@
 # coding: utf-8
-import threading as td
 import time
-from unittest import result
+
 from PyQt5.QtCore import QSize, QThread, pyqtSignal
 from PyQt5.QtGui import QIcon
 from PyQt5.QtWidgets import QApplication
-from more_itertools import peekable
-
-from qfluentwidgets import (NavigationItemPosition, FluentWindow,
-                            SplashScreen)
+from loguru import logger
 from qfluentwidgets import FluentIcon as FIF
+from qfluentwidgets import FluentWindow, NavigationItemPosition, SplashScreen
 
 from app.components.info_bar import CreateInfoBar
 
-from .gallery_interface import GalleryInterface
-from .scan_interface import ScanInterface
-from .inst_config_interface import ConfInterface
-from .display_interface import DisplayInterface
+from ..common import resource
 from ..common.config import SUPPORT_URL, cfg
 from ..common.icon import Icon
-from ..common import resource
 from ..common.signal_bus import signalBus
 from ..common.translator import Translator
 from ..components.agilent34970a import Agilent34970A
 from ..components.create_thread import CreateThread
+
+from .cmd_interface import CommandInterface
+from .display_interface import DisplayInterface
+from .gallery_interface import GalleryInterface
+from .inst_config_interface import ConfInterface
+from .scan_interface import ScanInterface
 
 
 class MainWindow(FluentWindow, Agilent34970A):
 
     def __init__(self):
         self.inst = Agilent34970A()
-        self.scanResult = {}
+        # self.scanResult = {}
+        self.scanResultData = {}
         super().__init__()
         self.initWindow()
         # create sub interface
         self.scanInterface = ScanInterface(self.inst,  self)
         self.confInterface = ConfInterface(self.inst, self)
         self.displayInterface = DisplayInterface(self.inst, self)
-        # self.scanThread = CreateThread()
+        self.cmdInterface = CommandInterface(self.inst, self)
         self.connectSignalToSlot()
 
         # add items to navigation interface
         self.initNavigation()
         self.splashScreen.finish()
+        
 
     def connectSignalToSlot(self):
         signalBus.micaEnableChanged.connect(self.setMicaEffectEnabled)
@@ -60,6 +61,7 @@ class MainWindow(FluentWindow, Agilent34970A):
         pos = NavigationItemPosition.SCROLL
         self.addSubInterface(self.scanInterface, FIF.SYNC, '扫描', pos)
         self.addSubInterface(self.displayInterface, FIF.SPEED_MEDIUM, '曲线', pos)
+        self.addSubInterface(self.cmdInterface, FIF.COMMAND_PROMPT, '调试工具', pos)
 
 
     def initWindow(self):
@@ -95,34 +97,76 @@ class MainWindow(FluentWindow, Agilent34970A):
         '''
         创建新线程，启动扫描
         '''
+        self.scanResultData = self.inst.channelListDict
+        # self.displayInterface.initDisplay()
         # 扫描线程
-        scanThread:CreateThread = kwargs.get('scanThread')
-        # self.scanThread = CreateThread()
-        # self.scanThread.scanSignal.connect(slot)
-        # self.scanThread.target = self.inst.test     # TODO:修改为scanAll函数
-        # self.scanThread.timeInterval = self.inst.scanInterval
-        # self.scanThread.timeInterval = 1
+        self.scanThread = CreateThread()
+        self.scanThread.target = self.inst.parseResult
+        self.scanThread.timeInterval = self.inst.scanInterval
+        self.scanThread.scanSignal.connect(self.scanResult)
+        # 更新表格线程
+        self.tableThread = self.scanInterface.createTableThread
         # 时钟线程
-        syncTimeThread:CreateThread = kwargs.get('syncTimeThread')
-        # self.beginScanTime = time.time()
-        # self.syncTimeThread = CreateThread()
-        # self.syncTimeThread.target = self.syncTime
-        # self.syncTimeThread.timeInterval = 1
-
+        self.scanInterface.beginScanTime = time.time()
+        self.syncTimeThread = self.scanInterface.createSyncTimeThread
+        # 绘图线程
+        self.displayInterface.initDisplay()   # 初始化绘图
+        self.displayThread = self.displayInterface.createPlotThread
         # 启动线程
         CreateInfoBar.createInfoBar(self, '提示', '开始扫描')
-        self.inst.getBeginStartScanTime
-        scanThread.start()
-        syncTimeThread.start()
-        # beginScanTime = time.localtime()
-        # self.syncTime(beginScanTime)
-        # self.scanThread.start()
-        # self.syncTimeThread.start()
+        # self.inst.getBeginStartScanTime
+        if self.scanThread:
+            self.scanThread.start()
+        if self.tableThread:
+            self.tableThread.start()
+        if self.syncTimeThread:
+            self.syncTimeThread.start()
+        if self.displayThread:
+            self.displayThread.start()
 
+    def stopScan(self, *args, **kwargs):
+        '''
+        结束扫描，关闭线程
+        '''
+        try:
+            self.inst.breakScan
+        except Exception as e:
+            CreateInfoBar.createErrorInfoBar(self, '错误', str(e))
+            return
+        finally:
+            if self.scanThread.isRunning:
+                self.scanThread.stop()
+            if self.tableThread.isRunning:
+                self.tableThread.stop()
+            if self.syncTimeThread.isRunning:
+                self.syncTimeThread.stop()
+            if self.displayThread.isRunning:
+                self.displayThread.stop()
+    
         ...
-    def scanResultData(self,resultData):
-        self.scanResult = resultData
-        # return self.r
+    def scanResult(self,resultData):
+        # logger.info(f'字典: {self.scanResultData}')
+        # j = 0
+        # for i in range(len(self.inst.channelList)):
+        #     logger.info(f'扫描结果: {resultData[j:j+7]}')
+        #     self.scanResultData[self.scanResultData[i]]['data'].extend(resultData[j:j+7])
+        #     self.scanResultData[self.scanResultData[i]]['time'].extend(resultData[j:j+7])
+        #     self.scanResultData[self.scanResultData[i]]['maxValue'] = max(self.scanResultData[self.scanResultData[i]]['data'])
+        #     self.scanResultData[self.scanResultData[i]]['minValue'] = min(self.scanResultData[self.scanResultData[i]]['data'])
+        #     j+=7
+        # logger.info(f'格式化数据: {self.scanResultData}')
+        self.scanResultData = resultData
+        # logger.info(f'扫描结果: {self.scanResultData}')
+        ...
+    def scanPlot(self):
+        plotThread = CreateThread()
+        plotThread.target = self.displayInterface.displayPlot(self.scanResult)
+        plotThread.timeInterval = self.inst.scanInterval
+        
+        return plotThread
+    
+    def test(self):
+        self.displayInterface.displayPlot(self.scanResult)
         ...
 
 

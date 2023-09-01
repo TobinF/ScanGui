@@ -1,4 +1,5 @@
 # coding:utf-8
+import time
 from PyQt5.QtCore import Qt 
 from PyQt5.QtWidgets import (QWidget, QFrame,  QHBoxLayout, QVBoxLayout)
 from qfluentwidgets import EditableComboBox, PlainTextEdit, CheckBox, LineEdit,ComboBox,CardWidget, PushButton, FlowLayout
@@ -6,8 +7,10 @@ from qfluentwidgets import FluentIcon as FIF
 from loguru import logger
 
 from .gallery_interface import GalleryInterface,ToolBar
+from ..config.InstConfig import ConfigImport
 from ..common.style_sheet import StyleSheet
 from ..components.info_bar import CreateInfoBar
+from ..components.utils import channelInputCheck
 from ..components.agilent34970a import Agilent34970A
 
 
@@ -65,7 +68,6 @@ class InitInstFrame(Frame, QWidget):
         self.__initInstView()
         self.addWidget(self.card)
 
-
     def __initInstView(self):
         
         comboBoxLayout = QHBoxLayout()
@@ -86,6 +88,10 @@ class InitInstFrame(Frame, QWidget):
         self.testInstButton = PushButton()
         self.testInstButton.setText('测试仪器')
         self.testInstButton.setIcon(FIF.SETTING)
+        self.importConfButton = PushButton()
+        self.importConfButton.setText('导入配置')
+        self.importConfButton.setIcon(FIF.LINK)
+
         # 设置控件大小
         self.setCom.setFixedSize(120, 32)
         self.baudRate.setFixedSize(120, 32)
@@ -104,6 +110,7 @@ class InitInstFrame(Frame, QWidget):
         CheckBoxLayout.addWidget(self.clsInst)
         buttonBoxLayout.addWidget(self.testInstButton)
         buttonBoxLayout.addWidget(self.initInstButton)
+        buttonBoxLayout.addWidget(self.importConfButton)
         # 设置布局间隔
         comboBoxLayout.setSpacing(20)
         CheckBoxLayout.setSpacing(20)
@@ -141,6 +148,7 @@ class InitInstFrame(Frame, QWidget):
         # 设置按钮点击事件
         self.initInstButton.clicked.connect(self.initInstButtonOnClicked)
         self.testInstButton.clicked.connect(self.testInstButtOnClicked)
+        self.importConfButton.clicked.connect(self.importConfButtonOnClicked)
 
 
     def initInstButtonOnClicked(self):
@@ -171,7 +179,12 @@ class InitInstFrame(Frame, QWidget):
         if self.scanInterval.text() == '':
             CreateInfoBar.createErrorInfoBar(self.mainWindow,'警告', '未输入扫描间隔，设置为默认值10s')
         else:
-            scanInterval = int(self.scanInterval.text())
+            scanInterval = float(self.scanInterval.text())
+            
+        if self.resetInst.isChecked():
+            reset = True
+        if self.clsInst.isChecked():
+            cls = True
         # 初始化仪器
         id = self.inst.connectInstrument(
             com, baude_rate, timeout, reset=reset, cls=cls, scanInterval=scanInterval)
@@ -199,6 +212,36 @@ class InitInstFrame(Frame, QWidget):
         else:
             CreateInfoBar.createErrorInfoBar(self.mainWindow,'错误', '仪器自检操作失败: '+str(flag)+'建议增加超时时间')
             return
+
+    def importConfButtonOnClicked(self, **kargs):
+        fileName = r'instConfig.ini'
+        if not self.inst.connectState:
+            CreateInfoBar.createErrorInfoBar(self.mainWindow,'错误', '仪器未连接，请先初始化仪器')
+            return
+        config = ConfigImport(fileName,self.mainWindow)
+        # 温度通道配置
+        self.inst.inst.write('CONF:TEMP %s,%s,%s,%s'%(config.TemperatureConf.probe_type,
+                                                      config.TemperatureConf.sensor_type,
+                                                      config.TemperatureConf.channel_list))
+        self.inst.inst.write('UNIT:TEMP %s,%s'%(config.TemperatureConf.temperature_Unit,
+                                                config.TemperatureConf.channel_list))
+        # 电流通道配置
+        self.inst.inst.write('CONF:CURR %s,%s,%s'%(config.CurrentConf.curr_type,
+                                                    config.CurrentConf.curr_range,
+                                                    config.CurrentConf.channel_list))
+        # 计算通道配置
+        # self.inst.inst.write('CONF:CALC %s,%s,%s,%s,%s,%s,%s,%s'%(config.CalculatedConf.curr_type,
+        #                                                         config.CalculatedConf.curr_range,
+        #                                                         config.CalculatedConf.channel_list,
+        #                                                         config.CalculatedConf.measure_type,
+        #                                                         config.CalculatedConf.measure_unit,
+        #                                                         config.CalculatedConf.curr_range_min,
+        #                                                         config.CalculatedConf.curr_range_max,
+        #                                                         config.CalculatedConf.measure_range_min,
+        #                                                         config.CalculatedConf.measure_range_max))
+        ...
+        CreateInfoBar.createSuccessInfoBar(self.mainWindow,'成功', '已导入配置')
+
 
 class InitTempChannelFrame(Frame, QWidget):
     def __init__(self,inst, parent=None):
@@ -312,11 +355,15 @@ class InitTempChannelFrame(Frame, QWidget):
             return
         else:
             sensor_type = self.sensorType.currentText()
-        if self.tempChannelList.toPlainText() == '':
+        _tempChannelList = self.tempChannelList.toPlainText().replace('，', ',').replace('：', ':')
+        if _tempChannelList == '':
             CreateInfoBar.createErrorInfoBar(self.mainWindow,'错误', '请输入通道列表')
             return
+        elif not channelInputCheck(_tempChannelList):
+            CreateInfoBar.createErrorInfoBar(self.mainWindow,'错误', '通道输入格式错误')
+            return
         else:
-            channel_list = self.tempChannelList.toPlainText()
+            channel_list = _tempChannelList
         if self.temperatureUnit.currentIndex() == 0:
             CreateInfoBar.createWarningInfoBar(self.mainWindow,'警告', '未选择温度单位，设置为默认值℃')
         else:
@@ -329,7 +376,10 @@ class InitTempChannelFrame(Frame, QWidget):
                                channelListStr = channel_list, 
                                temperatureUnit = temperature_unit
                                )
+            # time.sleep(0.1)
+            # self.mainWindow.scanResultData = self.inst.channelListDict
             CreateInfoBar.createSuccessInfoBar(self.mainWindow,'成功', '已配置温度通道')
+            
         except Exception as e:
             CreateInfoBar.createErrorInfoBar(self.mainWindow,'错误', '配置失败: ' + str(e))
             return
@@ -416,11 +466,15 @@ class InitCurrChannelFrame(Frame, QWidget):
         curr_range = 'AUTO'
         channel_list = ''
         # 判断输入是否正确
-        if self.currChannelList.toPlainText() == '':
+        _currChannelList = self.currChannelList.toPlainText().replace('，', ',').replace('：', ':')
+        if _currChannelList:
             CreateInfoBar.createErrorInfoBar(self.mainWindow, '错误', '请输入通道列表')
             return
+        elif not channelInputCheck(_currChannelList):
+            CreateInfoBar.createErrorInfoBar(self.mainWindow,'错误', '通道输入格式错误')
+            return
         else:
-            channel_list = self.currChannelList.toPlainText()
+            channel_list = _currChannelList
         if self.currType.currentIndex() == 0:
             CreateInfoBar.createWarningInfoBar(self.mainWindow, '警告', '未选择电流类型，设置为默认值DC')
         else:
@@ -433,6 +487,9 @@ class InitCurrChannelFrame(Frame, QWidget):
         # 初始化电流通道
         try:
             self.inst.confCurr(curr_type, curr_range, channel_list)
+            # time.sleep(0.1)
+            # self.mainWindow.scanResultData = self.inst.channelListDict
+
             CreateInfoBar.createSuccessInfoBar(self.mainWindow, '成功', '已配置电流通道')
         except Exception as e:
             CreateInfoBar.createErrorInfoBar(self.mainWindow, '错误', '配置失败: '+str(e))
@@ -473,7 +530,7 @@ class InitCalculatedFrame(Frame, QWidget):
         self.currConfButton.setText('提交配置')
         self.currConfButton.setIcon(FIF.ACCEPT)
         self.currChannelList.setPlaceholderText(
-            '输入要配置的通道，通道之间用逗号分隔。对于一系列通道，输入以冒号分隔的第一个和最后一个通道。例如:\n101,102,109\n104:111')
+            '输入要配置的通道，通道之间用逗号分隔。对于一系列通道，输入以冒号分隔的第一个和最后一个通道。对于34901A 20通道多路复用器，电流仅支持21，22通道')
 
         # 设置控件大小
         self.currType.setFixedSize(120, 32)
@@ -493,8 +550,8 @@ class InitCalculatedFrame(Frame, QWidget):
         comboBoxLayout.addWidget(self.currRange)
         comboBoxLayout.addWidget(self.measureType)
         comboBoxLayout.addWidget(self.measureUnits)
-        textBoxLayout0.addWidget(self.currRangeMax)
         textBoxLayout0.addWidget(self.currRangeMin)
+        textBoxLayout0.addWidget(self.currRangeMax)
         textBoxLayout0.addWidget(self.mesureRangeMin)
         textBoxLayout0.addWidget(self.mesureRangeMax)
         textBoxLayout.addWidget(self.currChannelList)
@@ -525,10 +582,11 @@ class InitCalculatedFrame(Frame, QWidget):
         self.setFixedHeight(300)
         # 添加控件内容
         self.currChannelList.setPlaceholderText(
-            '输入要配置的通道，通道之间用逗号分隔。对于一系列通道，输入以冒号分隔的第一个和最后一个通道。例如:\n101,102,109\n104:111')
+                '输入要配置的通道，通道之间用逗号分隔。对于一系列通道，输入以冒号分隔的第一个和最后一个通道。\
+                计算通道仅支持21及22的电流通道')
         self.currType.addItems(['AC/DC', 'AC', 'DC'])
         self.currRange.addItems(['电流范围', 'AUTO', '10mA', '100mA', '1A'])
-        self.measureType.addItems(['测量类型', '电流', '流量', '压力', '温度', '其他'])
+        self.measureType.addItems(['测量类型', '电流', '流量', '压力', '温度变送器', '其他'])
         self.measureUnits.setPlaceholderText('选择测量类型')
         def chooseMesureType(index):
             if self.measureType.count() > 0:
@@ -541,21 +599,21 @@ class InitCalculatedFrame(Frame, QWidget):
                 self.measureUnits.addItems(['电流单位','A', 'mA', 'uA'])
             elif index == 2:
                 self.measureUnits.setPlaceholderText('流量单位')
-                self.measureUnits.addItems(['流量单位','kg/h', 'kg/s', 'g/s'])            
+                self.measureUnits.addItems(['流量单位','kg/h', 'kg/s', 'm3/h', 'm3/s'])            
             elif index == 3:
                 self.measureUnits.setPlaceholderText('压力单位')
-                self.measureUnits.addItems(['压力单位','kPa', 'Mpa', 'bar'])
+                self.measureUnits.addItems(['压力单位','kPa', 'MPa', 'bar'])
             elif index == 4:
-                self.measureUnits.setPlaceholderText('温度单位')
+                self.measureUnits.setPlaceholderText('温度变送器单位')
                 self.measureUnits.addItems(['温度单位','C', 'K', 'F'])
             elif index == 5:
                 self.measureUnits.setPlaceholderText('输入单位')
             else:
                 self.measureUnits.clear()
+        
         self.measureType.currentIndexChanged.connect(chooseMesureType)
-
-        self.currRangeMax.setPlaceholderText('电流范围上限')
         self.currRangeMin.setPlaceholderText('电流范围下限')
+        self.currRangeMax.setPlaceholderText('电流范围上限')
         self.mesureRangeMin.setPlaceholderText('测量范围下限')
         self.mesureRangeMax.setPlaceholderText('测量范围上限')
 
@@ -575,17 +633,21 @@ class InitCalculatedFrame(Frame, QWidget):
         currRange = 'AUTO'
         measureType = '电流'
         measureUnits = 'mA'
+        currRangeMin = 4
         currRangeMax = 20
-        currRangeMin = 0
-        mesureRangeMin = 0
+        mesureRangeMin = 4
         mesureRangeMax = 20
         channelList = ''
         # 判断输入是否正确
-        if self.currChannelList.toPlainText() == '':
+        _currChannelList = self.currChannelList.toPlainText().replace('，', ',').replace('：', ':')
+        if _currChannelList == '':
             CreateInfoBar.createErrorInfoBar(self.mainWindow, '错误', '请输入通道列表')
             return
+        elif not channelInputCheck(_currChannelList):
+            CreateInfoBar.createErrorInfoBar(self.mainWindow,'错误', '通道输入格式错误')
+            return        
         else:
-            channelList = self.currChannelList.toPlainText()
+            channelList = _currChannelList
         if self.currType.currentIndex() == 0:
             CreateInfoBar.createWarningInfoBar(self.mainWindow, '警告', '未选择电流类型，设置为默认值DC')
         else:
@@ -602,16 +664,16 @@ class InitCalculatedFrame(Frame, QWidget):
             CreateInfoBar.createWarningInfoBar(self.mainWindow, '警告', '未输入测量单位，设置为默认值mA')
         else:
             measureUnits = self.measureUnits.text()
+        if self.currRangeMin.text() == '':
+            CreateInfoBar.createWarningInfoBar(self.mainWindow, '警告', '未输入电流范围下限，设置为默认值4')
+        else:
+            currRangeMin = float(self.currRangeMin.text())
         if self.currRangeMax.text() == '':
             CreateInfoBar.createWarningInfoBar(self.mainWindow, '警告', '未输入电流范围上限，设置为默认值20')
         else:
             currRangeMax = float(self.currRangeMax.text())
-        if self.currRangeMin.text() == '':
-            CreateInfoBar.createWarningInfoBar(self.mainWindow, '警告', '未输入电流范围下限，设置为默认值0')
-        else:
-            currRangeMin = float(self.currRangeMin.text())
         if self.mesureRangeMin.text() == '':
-            CreateInfoBar.createWarningInfoBar(self.mainWindow, '警告', '未输入测量范围下限，设置为默认值0')
+            CreateInfoBar.createWarningInfoBar(self.mainWindow, '警告', '未输入测量范围下限，设置为默认值4')
         else:
             mesureRangeMin = float(self.mesureRangeMin.text())
         if self.mesureRangeMax.text() == '':
@@ -619,10 +681,17 @@ class InitCalculatedFrame(Frame, QWidget):
         else:
             mesureRangeMax = float(self.mesureRangeMax.text())
 
-        # 初始化电流通道
+        # 初始化计算通道
         try:
-            self.inst.confCurr(currType, currRange, channelList)
-            CreateInfoBar.createSuccessInfoBar(self.mainWindow, '成功', '已配置电流通道')
+            self.inst.confCalulated(currType, currRange, channelList,
+                               measureType, measureUnits,
+                               currRangeMin,currRangeMax,
+                               mesureRangeMin,mesureRangeMax
+                               )
+            # time.sleep(0.1)
+            # self.mainWindow.scanResultData = self.inst.channelListDict
+            CreateInfoBar.createSuccessInfoBar(self.mainWindow, '成功', '已配置计算通道')
         except Exception as e:
             CreateInfoBar.createErrorInfoBar(self.mainWindow, '错误', '配置失败: '+str(e))
             return
+
