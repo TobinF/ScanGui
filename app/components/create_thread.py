@@ -1,20 +1,22 @@
 # -*- coding: utf-8 -*-
 import time
-# from typing import Any
 from PyQt5.QtCore import QThread, pyqtSignal
-
+import numpy as np
 
 class CreateThread(QThread):
+    '''
+    创建新的线程
+    '''
 
     finishSignel = pyqtSignal(str)
+    # scanSignal = pyqtSignal(np.ndarray)
     scanSignal = pyqtSignal(dict)
-    # scanTime = pyqtSignal(time.struct_time)
+    flushpDisplay = pyqtSignal(bool)
 
     def __init__(self, *args, **kwargs):
         self.target = None
         self.timeInterval = None
         self.display = None
-        # self.isRunning = False
         super(CreateThread, self).__init__()
         
 
@@ -23,14 +25,10 @@ class CreateThread(QThread):
             if self.target:
                 data = self.target()
                 self.scanSignal.emit(data)
-                # self.scanTime.emit(time.localtime())
-                if self.display:
-                    self.display()                
-                if self.timeInterval:
-                    time.sleep(self.timeInterval)
-
-            else:
-                break
+            if self.display:
+                self.flushpDisplay.emit(True)               
+            if self.timeInterval:
+                time.sleep(self.timeInterval)
 
     def stop(self):
         try:
