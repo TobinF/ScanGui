@@ -37,6 +37,14 @@ class DisplayInterface(GalleryInterface):
         }
 
     def initDisplay(self):
+        # def initDisplay(self):
+        for displayCard,i in self.displayDict.items():
+            try:
+                self.__getattribute__(i)
+                delattr(self, self.displayDict[i]) 
+            except:
+                continue
+
         parseData = self.parsePlotData(self.mainWindow.scanResultData)
         logger.info(f'解析数据: {parseData}')
         displayList = parseData.keys()
@@ -103,6 +111,8 @@ class DisplayInterface(GalleryInterface):
                     )
             else:
                 ...
+
+
     def parsePlotData(self, dic):
         # 定义一个空字典，用来存储按照type分组后的结果
         result = {}
@@ -167,5 +177,13 @@ class DisplayFrame(Frame):
         self.scanPlot.setLabel('left',  units=plotData[0]['unit'])
         for i in range(len(plotData)):
             plotTime = np.array(plotData[i]['time']) - plotData[i]['time'][0]
+            pen = {
+                'color': colorList[i],
+                'width': 2,
+                'style': Qt.SolidLine,
+                'symbol': 'o',
+                'symbolSize': 4,
+                # 'symbolBrush': colorList[i],
+            }
             self.scanPlot.plot(plotTime, plotData[i]['data'], pen=colorList[i], name=plotData[i]['channel'])
         ...

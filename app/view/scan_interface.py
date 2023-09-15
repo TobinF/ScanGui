@@ -60,15 +60,27 @@ class ScanInterface(GalleryInterface):
         saveDateButton = PushButton()
         saveDateButton.setText('导出数据')
         saveDateButton.clicked.connect(self.testStartButtonOnClicked)
-        saveDateButton.setFixedSize(120, 32)        
+        saveDateButton.setFixedSize(120, 32) 
+
         startScanButton = PushButton()
         startScanButton.setText('开始扫描')
         startScanButton.clicked.connect(self.startScanButtonOnClicked)
         startScanButton.setFixedSize(120, 32)
+
         stopScanButton = PushButton()
         stopScanButton.setText('结束扫描')
         stopScanButton.clicked.connect(self.stopScanButtonOnClicked)
         stopScanButton.setFixedSize(120, 32)
+
+        pauseScanButton = PushButton()
+        pauseScanButton.setText('暂停扫描')
+        pauseScanButton.clicked.connect(self.stopScanButtonOnClicked)
+        pauseScanButton.setFixedSize(120, 32)
+        
+        emptyScanButton = PushButton()
+        emptyScanButton.setText('清空当前数据')
+        emptyScanButton.clicked.connect(self.stopScanButtonOnClicked)
+        emptyScanButton.setFixedSize(120, 32)
         # 设置LCD显示时间
         timeLcdLabel = BodyLabel()
         timeLcdLabel.setText('扫描时间')
@@ -81,8 +93,10 @@ class ScanInterface(GalleryInterface):
 
         # 添加控件到布局
         buttonBoxLayout.addWidget(startScanButton)
+        buttonBoxLayout.addWidget(pauseScanButton)
         buttonBoxLayout.addWidget(stopScanButton)
         buttonBoxLayout.addWidget(saveDateButton)
+        buttonBoxLayout.addWidget(emptyScanButton)
         buttonBoxLayout.addWidget(timeLcdLabel)
         buttonBoxLayout.addWidget(self.timeLcd)
         # 布局设置
@@ -123,6 +137,20 @@ class ScanInterface(GalleryInterface):
         '''
         self.mainWindow.stopScan()
         ...
+    def pauseScanButtonOnClicked(self):
+        '''
+        暂停扫描
+        '''
+        self.mainWindow.stopScan()
+        ...
+
+    def emptyScanButtonOnClicked(self):
+        '''
+        清空当前数据
+        '''
+        self.mainWindow.emptyScan()
+        ...    
+
     def testStartButtonOnClicked(self):
         self.exportData()
 

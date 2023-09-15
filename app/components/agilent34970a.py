@@ -155,7 +155,7 @@ class Agilent34970A():
     
     def confCalulated(self, currType:str, currRange:str, channelListStr:str,
                             measureType:str, measureUnits:str,
-                            currRangeMax:float,currRangeMin:float,
+                            currRangeMin:float,currRangeMax:float,
                             mesureRangeMin:float,mesureRangeMax:float
                             ):
         self.channelListStr = self.channelListStr+','+channelListStr
@@ -178,8 +178,10 @@ class Agilent34970A():
                          currRangeMin:float, currRangeMax:float,
                          mesureRangeMin:float, mesureRangeMax:float):
         # 使用线性插值公式
+        currMeasure = float(currMeasure*1000)
         # 将4-20mA(典型值)转换为相应量程内的其他物理量currRangeMax->mesureRangeMax，currRangeMin->mesureRangeMin
         return mesureRangeMin + (mesureRangeMax - mesureRangeMin) * (currMeasure - currRangeMin) / (currRangeMax - currRangeMin)
+        # return (currMeasure-currRangeMin)/(currMax-currRangeMin)*(temperatureMax-currRangeMin)+temperatureMin
         ...
 
     def scan(self, channelListStr):
@@ -221,7 +223,9 @@ class Agilent34970A():
                     currRangeMin = self.channelListDict[self.channelList[i]]['transPara']['currRangeMin'],
                     currRangeMax = self.channelListDict[self.channelList[i]]['transPara']['currRangeMax'],
                     mesureRangeMin = self.channelListDict[self.channelList[i]]['transPara']['mesureRangeMin'],
-                    mesureRangeMax = self.channelListDict[self.channelList[i]]['transPara']['mesureRangeMax'])
+                    mesureRangeMax = self.channelListDict[self.channelList[i]]['transPara']['mesureRangeMax'],
+                    )
+                
                 self.channelListDict[self.channelList[i]]['data'].append(data)
                 self.channelListDict[self.channelList[i]]['time'].append(self.transTimeToTimeStamp(scanResults[j:j+7][1:]))
                 self.channelListDict[self.channelList[i]]['maxValue'] = max(self.channelListDict[self.channelList[i]]['data'])

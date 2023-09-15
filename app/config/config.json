@@ -5,17 +5,16 @@
     "Update": {
         "CheckUpdateAtStartUp": true
     },
-    "Folders": {
-        "Download": "e:/Documents/PyQt-Fluent-Widgets/examples/gallery/app/download",
-        "LocalMusic": []
-    },
     "MainWindow": {
-        "DpiScale": "Auto",
+        "DpiScale": 1.5,
         "Language": "Auto",
         "MicaEnabled": true
     },
+    "Folders": {
+        "LocalMusic": []
+    },
     "QFluentWidgets": {
-        "ThemeColor": "#ff009faa",
+        "ThemeColor": "#ff8b25aa",
         "ThemeMode": "Light"
     }
 }

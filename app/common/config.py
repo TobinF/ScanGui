@@ -1,6 +1,7 @@
 # coding:utf-8
 import sys
 from enum import Enum
+import time
 
 from PyQt5.QtCore import QLocale
 from qfluentwidgets import (qconfig, QConfig, ConfigItem, OptionsConfigItem, BoolValidator,
@@ -37,8 +38,8 @@ class Config(QConfig):
     # folders
     musicFolders = ConfigItem(
         "Folders", "LocalMusic", [], FolderListValidator())
-    downloadFolder = ConfigItem(
-        "Folders", "Download", "app/download", FolderValidator())
+    # downloadFolder = ConfigItem(
+    #     "Folders", "Download", "app/download", FolderValidator())
 
     # main window
     micaEnabled = ConfigItem("MainWindow", "MicaEnabled", isWin11(), BoolValidator())
@@ -54,15 +55,15 @@ class Config(QConfig):
     checkUpdateAtStartUp = ConfigItem("Update", "CheckUpdateAtStartUp", True, BoolValidator())
 
 
-YEAR = 2023
+YEAR = '2023-'+str(time.localtime().tm_year)
 AUTHOR = "zhiyiYo"
 VERSION = __version__
-HELP_URL = "https://pyqt-fluent-widgets.readthedocs.io/zh_CN/latest"
-REPO_URL = "https://github.com/zhiyiYo/PyQt-Fluent-Widgets"
-EXAMPLE_URL = "https://github.com/zhiyiYo/PyQt-Fluent-Widgets/tree/master/examples"
-FEEDBACK_URL = "https://github.com/zhiyiYo/PyQt-Fluent-Widgets/issues"
-RELEASE_URL = "https://github.com/zhiyiYo/PyQt-Fluent-Widgets/releases/latest"
-SUPPORT_URL = "https://afdian.net/a/zhiyiYo"
+# HELP_URL = "https://pyqt-fluent-widgets.readthedocs.io/zh_CN/latest"
+# REPO_URL = "https://github.com/zhiyiYo/PyQt-Fluent-Widgets"
+# EXAMPLE_URL = "https://github.com/zhiyiYo/PyQt-Fluent-Widgets/tree/master/examples"
+# FEEDBACK_URL = "https://github.com/zhiyiYo/PyQt-Fluent-Widgets/issues"
+# RELEASE_URL = "https://github.com/zhiyiYo/PyQt-Fluent-Widgets/releases/latest"
+# SUPPORT_URL = "https://afdian.net/a/zhiyiYo"
 
 
 cfg = Config()

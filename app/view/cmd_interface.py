@@ -126,7 +126,7 @@ class CommandFrame(Frame):
     @func_set_timeout(20)
     def queryButtonOnClicked(self):
         try:
-            ret = self.inst.inst.query(self.commandComboBox.currentText())
+            ret = self.inst.inst.query(self.commandComboBox.currentText().split('--')[0])
             self.commandTextEdit.append(str(self.counts)+': query')
             self.commandTextEdit.append('send:  '+self.commandComboBox.currentText())
             self.commandTextEdit.append('return: \n'+ret)

@@ -1,17 +1,17 @@
 # coding: utf-8
 import time
 
-from PyQt5.QtCore import QSize, QThread, pyqtSignal
-from PyQt5.QtGui import QIcon
+from PyQt5.QtCore import QSize, QThread, pyqtSignal, QUrl
+from PyQt5.QtGui import QIcon, QDesktopServices
 from PyQt5.QtWidgets import QApplication
 from loguru import logger
 from qfluentwidgets import FluentIcon as FIF
-from qfluentwidgets import FluentWindow, NavigationItemPosition, SplashScreen
+from qfluentwidgets import FluentWindow, NavigationItemPosition, SplashScreen,NavigationAvatarWidget
 
 from app.components.info_bar import CreateInfoBar
 
 from ..common import resource
-from ..common.config import SUPPORT_URL, cfg
+from ..common.config import  cfg
 from ..common.icon import Icon
 from ..common.signal_bus import signalBus
 from ..common.translator import Translator
@@ -23,6 +23,7 @@ from .display_interface import DisplayInterface
 from .gallery_interface import GalleryInterface
 from .inst_config_interface import ConfInterface
 from .scan_interface import ScanInterface
+from .setting_interface import SettingInterface
 
 
 class MainWindow(FluentWindow, Agilent34970A):
@@ -38,6 +39,9 @@ class MainWindow(FluentWindow, Agilent34970A):
         self.confInterface = ConfInterface(self.inst, self)
         self.displayInterface = DisplayInterface(self.inst, self)
         self.cmdInterface = CommandInterface(self.inst, self)
+
+        self.settingInterface = SettingInterface(self)
+
         self.connectSignalToSlot()
 
         # add items to navigation interface
@@ -53,7 +57,7 @@ class MainWindow(FluentWindow, Agilent34970A):
 
     def initNavigation(self):
         # add navigation items
-        t = Translator()
+        # t = Translator()
         self.addSubInterface(self.confInterface, FIF.DEVELOPER_TOOLS, '配置仪器')
         # 添加分割线
         self.navigationInterface.addSeparator()
@@ -62,6 +66,10 @@ class MainWindow(FluentWindow, Agilent34970A):
         self.addSubInterface(self.scanInterface, FIF.SYNC, '扫描', pos)
         self.addSubInterface(self.displayInterface, FIF.SPEED_MEDIUM, '曲线', pos)
         self.addSubInterface(self.cmdInterface, FIF.COMMAND_PROMPT, '调试工具', pos)
+
+        # 添加分割线
+        self.navigationInterface.addSeparator(NavigationItemPosition.BOTTOM)        
+        self.addSubInterface(self.settingInterface, FIF.SETTING, '设置', NavigationItemPosition.BOTTOM)
 
 
     def initWindow(self):
@@ -112,6 +120,7 @@ class MainWindow(FluentWindow, Agilent34970A):
         # 绘图线程
         self.displayInterface.initDisplay()   # 初始化绘图
         self.displayThread = self.displayInterface.createPlotThread
+        # self.displayInterface
         # 启动线程
         CreateInfoBar.createInfoBar(self, '提示', '开始扫描')
         # self.inst.getBeginStartScanTime
@@ -169,6 +178,14 @@ class MainWindow(FluentWindow, Agilent34970A):
         self.displayInterface.displayPlot(self.scanResult)
         ...
 
+    def emptyScan(self, *args, **kwargs):
+        '''
+        清空当前数据
+        '''
+        self.scanResultData = {}
+        # self.scanInterface.emptyTable()
+        self.displayInterface.initDisplay()
+        ...
 
 
 
